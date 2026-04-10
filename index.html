@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Room Electricity Bill</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+            background: #eef2f7;
+            padding: 30px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 380px;
+            margin: auto;
+        }
+        input {
+            padding: 10px;
+            margin: 8px;
+            width: 90%;
+        }
+        button {
+            padding: 10px;
+            background: blue;
+            color: white;
+            border: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+    <h2>⚡ Room Bill</h2>
+
+    <!-- ADMIN -->
+    <div id="admin">
+        <input type="number" id="prev" placeholder="Previous Reading">
+        <input type="number" id="curr" placeholder="Current Reading">
+        <button onclick="updateBill()">Update</button>
+    </div>
+
+    <!-- DISPLAY -->
+    <h3>Units: <span id="units">0</span></h3>
+    <h3>Total: ₹<span id="total">0</span></h3>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyC-QCBrGFrGI7FPrmZjocmf4Mzu92TgiEs",
+  authDomain: "room-electricity.firebaseapp.com",
+  databaseURL: "https://room-electricity-default-rtdb.firebaseio.com",
+  projectId: "room-electricity"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function calculate(units) {
+    let energy = 0;
+    let u = units;
+
+    let s1 = Math.min(u,100); energy += s1*3.35; u-=s1;
+    if(u>0){let s2=Math.min(u,100);energy+=s2*4.25;u-=s2;}
+    if(u>0){let s3=Math.min(u,100);energy+=s3*5.35;u-=s3;}
+    if(u>0){let s4=Math.min(u,100);energy+=s4*7.2;u-=s4;}
+    if(u>0){let s5=Math.min(u,100);energy+=s5*8.5;u-=s5;}
+
+    return energy;
+}
+
+function fixed(units){
+    if(units<=100)return 100;
+    if(units<=200)return 170;
+    if(units<=300)return 210;
+    if(units<=400)return 280;
+    if(units<=500)return 320;
+    return 440;
+}
+
+function updateBill(){
+    let prev = parseFloat(document.getElementById("prev").value)||0;
+    let curr = parseFloat(document.getElementById("curr").value)||0;
+
+    let units = curr - prev;
+    if(units<0) units=0;
+
+    let energy = calculate(units);
+    let total = energy + fixed(units) + (energy*0.1) + 12;
+
+    db.ref("bill").set({
+        units: units,
+        total: total
+    });
+}
+
+// LIVE UPDATE
+db.ref("bill").on("value", snap=>{
+    let data = snap.val();
+    if(data){
+        document.getElementById("units").innerText = data.units;
+        document.getElementById("total").innerText = data.total.toFixed(2);
+    }
+});
+</script>
+
+</body>
+</html>
