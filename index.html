@@ -129,8 +129,8 @@
 
 <script>
 const PASSWORD = "4007";
+let isAdmin = false;
 
-// 🔥 Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyC-QCBrGFrGI7FPrmZjocmf4Mzu92TgiEs",
   authDomain: "room-electricity.firebaseapp.com",
@@ -141,7 +141,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Elements
+const currInput = document.getElementById("curr");
 const unitsEl = document.getElementById("units");
 const totalEl = document.getElementById("total");
 const historyBox = document.getElementById("historyBox");
@@ -154,14 +154,15 @@ function openLogin(){
 
 function checkPassword(){
   if(document.getElementById("password").value === PASSWORD){
+    isAdmin = true;
+    document.getElementById("loginBox").style.display = "none";
     document.getElementById("adminPanel").style.display = "block";
-    alert("Admin Access Granted ✅");
   } else {
     alert("Wrong Password ❌");
   }
 }
 
-// CALCULATE
+// CALCULATION
 function calculate(u){
   let e=0;
   let s1=Math.min(u,100); e+=s1*3.35; u-=s1;
@@ -181,25 +182,54 @@ function fixed(u){
   return 440;
 }
 
-// UPDATE BILL + HISTORY
-function updateBill(){
-  let prev=parseFloat(document.getElementById("prev").value)||0;
-  let curr=parseFloat(document.getElementById("curr").value)||0;
+// 🔥 RECALCULATE BILL (COMMON FUNCTION)
+function recalculateAll(data){
+  if(!data) return;
 
-  let units=curr-prev;
-  if(units<0) units=0;
+  let keys = Object.keys(data);
+  let first = data[keys[0]].curr;
+  let last = data[keys[keys.length-1]].curr;
 
-  let energy=calculate(units);
-  let total=energy+fixed(units)+(energy*0.1)+12;
+  let units = last - first;
+  if(units < 0) units = 0;
+
+  let energy = calculate(units);
+  let total = energy + fixed(units) + (energy * 0.1) + 12;
 
   db.ref("bill").set({units,total});
+}
 
-  db.ref("history").push({
-    prev,curr,units,
-    date:new Date().toLocaleString()
+// UPDATE BILL
+function updateBill(){
+  let curr=parseFloat(currInput.value)||0;
+
+  db.ref("history").once("value", snap=>{
+    let data=snap.val();
+
+    let initial;
+    if(!data){
+      initial = curr;
+    } else {
+      let firstKey = Object.keys(data)[0];
+      initial = data[firstKey].curr;
+    }
+
+    let units = curr - initial;
+    if(units<0) units=0;
+
+    db.ref("history").push({
+      prev: initial,
+      curr: curr,
+      units: units,
+      date: new Date().toLocaleString()
+    });
+
+    db.ref("history").once("value", snap2=>{
+      recalculateAll(snap2.val());
+    });
+
+    alert("Updated ✅");
   });
-
-  alert("Updated ✅");
 }
 
 // DISPLAY BILL
@@ -211,7 +241,7 @@ db.ref("bill").on("value", snap=>{
   }
 });
 
-// HISTORY
+// HISTORY (VIEW ONLY FOR USERS)
 function toggleHistory(){
   historyBox.style.display = historyBox.style.display==="block"?"none":"block";
 }
@@ -226,28 +256,41 @@ db.ref("history").on("value", snap=>{
   let html="";
   for(let k in data){
     let i=data[k];
+
     html+=`
-      <div class="history-item">
-        ${i.date}<br>
-        ${i.prev} → ${i.curr} = ${i.units}
-        <button onclick="editHistory('${k}')">✏️</button>
-      </div>
-    `;
+    <div class="history-item">
+      📅 ${i.date}<br>
+      ${i.prev} → ${i.curr}<br>
+      Units: ${i.units}
+      ${isAdmin ? `<button onclick="editHistory('${k}')">Edit</button>` : ""}
+    </div>`;
   }
+
   historyBox.innerHTML=html;
 });
 
-// EDIT
+// 🔥 EDIT HISTORY (FIXED)
 function editHistory(key){
-  let newUnits=prompt("Enter new units:");
-  if(newUnits){
-    db.ref("history/"+key+"/units").set(parseFloat(newUnits));
+  if(!isAdmin){
+    alert("Admin only ❌");
+    return;
   }
+
+  let newCurr = prompt("Enter new current reading:");
+  if(!newCurr) return;
+
+  db.ref("history/"+key+"/curr").set(parseFloat(newCurr));
+
+  // RECALCULATE EVERYTHING AFTER EDIT
+  db.ref("history").once("value", snap=>{
+    recalculateAll(snap.val());
+  });
+
+  alert("Updated & Recalculated ✅");
 }
 
 // GRAPH
 let chart;
-
 function toggleGraph(){
   chartCanvas.style.display = chartCanvas.style.display==="block"?"none":"block";
 }
@@ -263,7 +306,6 @@ db.ref("history").on("value", snap=>{
   }
 
   const ctx=chartCanvas.getContext("2d");
-
   if(chart) chart.destroy();
 
   chart=new Chart(ctx,{
@@ -278,26 +320,18 @@ db.ref("history").on("value", snap=>{
   });
 });
 
-// DATE FIXED
+// DATE
 window.onload = function(){
-  const billDate = "07-04-2026";
-  const nextDate = "07-06-2026";
-
   const today = new Date();
   const next = new Date("2026-06-07");
 
   let diff = Math.ceil((next - today)/(1000*60*60*24));
   if(diff < 0) diff = 0;
 
-  document.getElementById("billDate").innerText = billDate;
-  document.getElementById("nextDate").innerText = nextDate;
+  document.getElementById("billDate").innerText = "07-04-2026";
+  document.getElementById("nextDate").innerText = "07-06-2026";
   document.getElementById("daysLeft").innerText = diff;
 };
-
-// SERVICE WORKER
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js");
-}
 </script>
 
 </body>
