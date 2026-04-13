@@ -1,8 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Room Electricity Bill</title>
+  <title>Energy App</title>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e88e5">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -12,107 +17,99 @@
     body {
       margin: 0;
       font-family: Arial;
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      background: linear-gradient(#1e88e5, #90caf9);
+      color: white;
+    }
+
+    .top {
+      padding: 20px;
+      font-size: 28px;
+      font-weight: bold;
     }
 
     .card {
-      width: 100%;
-      max-width: 380px;
       background: white;
+      color: black;
       border-radius: 20px;
-      padding: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      margin: 15px;
+      padding: 15px;
     }
 
-    h2 {
-      text-align: center;
+    .total {
+      font-size: 30px;
+      font-weight: bold;
+      color: green;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .mini-card {
+      background: #f1f1f1;
+      padding: 10px;
+      border-radius: 12px;
+      font-size: 14px;
     }
 
     input {
       width: 100%;
-      padding: 14px;
-      margin: 8px 0;
-      font-size: 16px;
+      padding: 12px;
+      margin-top: 8px;
       border-radius: 10px;
       border: 1px solid #ccc;
     }
 
     button {
       width: 100%;
-      padding: 14px;
-      font-size: 16px;
+      padding: 12px;
       border-radius: 10px;
       border: none;
-      background: #007bff;
+      background: #1e88e5;
       color: white;
       margin-top: 10px;
-      font-weight: bold;
-    }
-
-    .row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 18px;
-      margin: 10px 0;
-    }
-
-    .total {
-      font-size: 24px;
-      font-weight: bold;
-      color: green;
-      text-align: center;
-    }
-
-    .admin-btn {
-      text-align: right;
-      font-size: 14px;
-      cursor: pointer;
-      margin-bottom: 10px;
     }
 
     #loginBox, #adminPanel {
       display: none;
-      margin-top: 10px;
-      background: #f1f1f1;
-      padding: 10px;
-      border-radius: 10px;
     }
   </style>
 </head>
 
 <body>
 
+<div class="top">⚡ Energy</div>
+
 <div class="card">
 
-  <div class="admin-btn" onclick="openLogin()">🔒 Admin</div>
+  <div class="total">₹ <span id="total">0</span></div>
+  <div>Units: <span id="units">0</span></div>
 
-  <h2>⚡ Room Bill</h2>
+  <div class="grid">
+    <div class="mini-card">📅 Bill: <span id="billDate"></span></div>
+    <div class="mini-card">⏳ Days Left: <span id="daysLeft"></span></div>
+  </div>
 
-  <!-- LOGIN BOX -->
+  <button onclick="openLogin()">🔒 Admin</button>
+
   <div id="loginBox">
-    <input type="password" id="password" placeholder="Enter Password">
+    <input type="password" id="password" placeholder="Password">
     <button onclick="checkPassword()">Login</button>
   </div>
 
-  <!-- ADMIN PANEL -->
   <div id="adminPanel">
     <input type="number" id="prev" placeholder="Previous Reading">
     <input type="number" id="curr" placeholder="Current Reading">
-    <button onclick="updateBill()">Update Bill</button>
+    <button onclick="updateBill()">Update</button>
   </div>
-
-  <!-- RESULT -->
-  <div class="row"><span>Units</span><span id="units">0</span></div>
-  <div class="total">₹ <span id="total">0</span></div>
 
 </div>
 
 <script>
-const PASSWORD = "1234";
+const PASSWORD = "4007";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC-QCBrGFrGI7FPrmZjocmf4Mzu92TgiEs",
@@ -124,43 +121,41 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// OPEN LOGIN
+const unitsEl = document.getElementById("units");
+const totalEl = document.getElementById("total");
+const billDateEl = document.getElementById("billDate");
+const daysLeftEl = document.getElementById("daysLeft");
+
+// LOGIN
 function openLogin(){
   document.getElementById("loginBox").style.display = "block";
 }
 
-// CHECK PASSWORD
 function checkPassword(){
-  let pass = document.getElementById("password").value;
-
-  if(pass === PASSWORD){
-    document.getElementById("loginBox").style.display = "none";
+  if(document.getElementById("password").value === PASSWORD){
     document.getElementById("adminPanel").style.display = "block";
   } else {
     alert("Wrong Password ❌");
   }
 }
 
-// CALCULATE
-function calculate(units){
-  let energy=0,u=units;
-
-  let s1=Math.min(u,100);energy+=s1*3.35;u-=s1;
-  if(u>0){let s2=Math.min(u,100);energy+=s2*4.25;u-=s2;}
-  if(u>0){let s3=Math.min(u,100);energy+=s3*5.35;u-=s3;}
-  if(u>0){let s4=Math.min(u,100);energy+=s4*7.2;u-=s4;}
-  if(u>0){let s5=Math.min(u,100);energy+=s5*8.5;u-=s5;}
-
-  return energy;
+// CALCULATION
+function calculate(u){
+  let e=0;
+  let s1=Math.min(u,100); e+=s1*3.35; u-=s1;
+  if(u>0){let s2=Math.min(u,100); e+=s2*4.25; u-=s2;}
+  if(u>0){let s3=Math.min(u,100); e+=s3*5.35; u-=s3;}
+  if(u>0){let s4=Math.min(u,100); e+=s4*7.2; u-=s4;}
+  if(u>0){let s5=Math.min(u,100); e+=s5*8.5; u-=s5;}
+  return e;
 }
 
-// FIXED
-function fixed(units){
-  if(units<=100)return 100;
-  if(units<=200)return 170;
-  if(units<=300)return 210;
-  if(units<=400)return 280;
-  if(units<=500)return 320;
+function fixed(u){
+  if(u<=100)return 100;
+  if(u<=200)return 170;
+  if(u<=300)return 210;
+  if(u<=400)return 280;
+  if(u<=500)return 320;
   return 440;
 }
 
@@ -175,22 +170,30 @@ function updateBill(){
   let energy=calculate(units);
   let total=energy+fixed(units)+(energy*0.1)+12;
 
-  db.ref("bill").set({
-    units: units,
-    total: total
-  });
-
-  alert("Updated ✅");
+  db.ref("bill").set({units,total});
 }
 
 // DISPLAY
-db.ref("bill").on("value", function(snapshot){
-  let data=snapshot.val();
-  if(data){
-    document.getElementById("units").innerText=data.units;
-    document.getElementById("total").innerText=data.total.toFixed(2);
+db.ref("bill").on("value", snap=>{
+  let d=snap.val();
+  if(d){
+    unitsEl.innerText=d.units;
+    totalEl.innerText=d.total.toFixed(2);
   }
 });
+
+// DATE
+const today = new Date();
+const next = new Date("2026-06-07");
+const days = Math.ceil((next - today)/(1000*60*60*24));
+
+billDateEl.innerText = "07-04-2026";
+daysLeftEl.innerText = days;
+
+// SERVICE WORKER REGISTER
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
 </script>
 
 </body>
