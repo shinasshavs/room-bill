@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Energy App</title>
+  <title>CED KSEB</title>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1e88e5">
@@ -12,6 +12,9 @@
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <!-- Chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
@@ -45,7 +48,6 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
-      margin-top: 10px;
     }
 
     .mini-card {
@@ -73,15 +75,21 @@
       margin-top: 10px;
     }
 
-    #loginBox, #adminPanel {
+    #loginBox, #adminPanel, #historyBox {
       display: none;
+    }
+
+    .history-item {
+      border-bottom: 1px solid #ccc;
+      padding: 5px;
+      font-size: 14px;
     }
   </style>
 </head>
 
 <body>
 
-<div class="top">⚡ Energy</div>
+<div class="top">⚡ CED KSEB</div>
 
 <div class="card">
 
@@ -90,7 +98,8 @@
 
   <div class="grid">
     <div class="mini-card">📅 Bill: <span id="billDate"></span></div>
-    <div class="mini-card">⏳ Days Left: <span id="daysLeft"></span></div>
+    <div class="mini-card">📅 Next: <span id="nextDate"></span></div>
+    <div class="mini-card">⏳ Days: <span id="daysLeft"></span></div>
   </div>
 
   <button onclick="openLogin()">🔒 Admin</button>
@@ -105,6 +114,12 @@
     <input type="number" id="curr" placeholder="Current Reading">
     <button onclick="updateBill()">Update</button>
   </div>
+
+  <button onclick="toggleHistory()">📜 History</button>
+  <div id="historyBox"></div>
+
+  <button onclick="toggleGraph()">📊 Graph</button>
+  <canvas id="chart" style="display:none;"></canvas>
 
 </div>
 
@@ -121,10 +136,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// ELEMENTS
 const unitsEl = document.getElementById("units");
 const totalEl = document.getElementById("total");
-const billDateEl = document.getElementById("billDate");
-const daysLeftEl = document.getElementById("daysLeft");
+const historyBox = document.getElementById("historyBox");
+const chartCanvas = document.getElementById("chart");
 
 // LOGIN
 function openLogin(){
@@ -134,8 +150,6 @@ function openLogin(){
 function checkPassword(){
   if(document.getElementById("password").value === PASSWORD){
     document.getElementById("adminPanel").style.display = "block";
-  } else {
-    alert("Wrong Password ❌");
   }
 }
 
@@ -159,7 +173,7 @@ function fixed(u){
   return 440;
 }
 
-// UPDATE
+// UPDATE + SAVE HISTORY
 function updateBill(){
   let prev=parseFloat(document.getElementById("prev").value)||0;
   let curr=parseFloat(document.getElementById("curr").value)||0;
@@ -171,9 +185,14 @@ function updateBill(){
   let total=energy+fixed(units)+(energy*0.1)+12;
 
   db.ref("bill").set({units,total});
+
+  db.ref("history").push({
+    prev,curr,units,
+    date:new Date().toLocaleString()
+  });
 }
 
-// DISPLAY
+// DISPLAY BILL
 db.ref("bill").on("value", snap=>{
   let d=snap.val();
   if(d){
@@ -182,15 +201,79 @@ db.ref("bill").on("value", snap=>{
   }
 });
 
+// HISTORY VIEW
+function toggleHistory(){
+  historyBox.style.display = (historyBox.style.display==="block")?"none":"block";
+}
+
+db.ref("history").on("value", snap=>{
+  let data=snap.val();
+  let html="";
+  for(let k in data){
+    let i=data[k];
+    html+=`
+    <div class="history-item">
+      ${i.date}<br>
+      ${i.prev} → ${i.curr} = ${i.units}
+      <button onclick="editHistory('${k}')">✏️</button>
+    </div>`;
+  }
+  historyBox.innerHTML=html;
+});
+
+// EDIT HISTORY
+function editHistory(key){
+  let newUnits=prompt("Enter corrected units:");
+  if(newUnits){
+    db.ref("history/"+key+"/units").set(parseFloat(newUnits));
+  }
+}
+
+// GRAPH
+let chart;
+function toggleGraph(){
+  chartCanvas.style.display = (chartCanvas.style.display==="block")?"none":"block";
+}
+
+db.ref("history").on("value", snap=>{
+  let data=snap.val();
+  if(!data) return;
+
+  let labels=[], values=[];
+  for(let k in data){
+    labels.push(data[k].date);
+    values.push(data[k].units);
+  }
+
+  const ctx=chartCanvas.getContext("2d");
+  if(chart) chart.destroy();
+
+  chart=new Chart(ctx,{
+    type:"line",
+    data:{
+      labels:labels,
+      datasets:[{
+        label:"Units Usage",
+        data:values,
+        borderWidth:2
+      }]
+    }
+  });
+});
+
 // DATE
-const today = new Date();
-const next = new Date("2026-06-07");
-const days = Math.ceil((next - today)/(1000*60*60*24));
+const today=new Date();
+const billDate="07-04-2026";
+const nextDate="07-06-2026";
 
-billDateEl.innerText = "07-04-2026";
-daysLeftEl.innerText = days;
+const next=new Date("2026-06-07");
+const days=Math.ceil((next-today)/(1000*60*60*24));
 
-// SERVICE WORKER REGISTER
+document.getElementById("billDate").innerText=billDate;
+document.getElementById("nextDate").innerText=nextDate;
+document.getElementById("daysLeft").innerText=days;
+
+// SERVICE WORKER
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js");
 }
