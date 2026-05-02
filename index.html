@@ -1,337 +1,664 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Energy App</title>
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#1e88e5">
-
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
+  <title>CED KSEB</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <style>
+    /* Force full width inside Google Sites iframe */
+    html { margin: 0 !important; padding: 0 !important; }
+    body { margin: 0 !important; padding: 0 !important; overflow-x: hidden; }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-  <!-- Chart -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: linear-gradient(#1e88e5, #90caf9);
-      color: white;
-    }
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-    .top {
-      padding: 20px;
-      font-size: 28px;
-      font-weight: bold;
-    }
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
 
-    .card {
-      background: white;
-      color: black;
-      border-radius: 20px;
-      margin: 15px;
-      padding: 15px;
-    }
+body {
+  font-family: 'Nunito', sans-serif;
+  background: #f0f4f8;
+  min-height: 100vh;
+  transition: background 0.3s;
+}
 
-    .total {
-      font-size: 30px;
-      font-weight: bold;
-      color: green;
-    }
+.app {
+  width: 100%;
+  min-height: 100vh;
+  background: white;
+  border-radius: 0;
+  padding: 16px 14px 24px;
+  box-shadow: none;
+  position: relative;
+}
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+/* DARK */
+body.dark { background: #1a1a1a; }
+body.dark .app { background: #1a1a1a; color: #f0f0f0; }
+body.dark .card { background: #252525; }
+body.dark .date-box { background: #252525; }
+body.dark .history-item { border-color: #333; }
+body.dark input { background: #2a2a2a; color: white; border: 1px solid #444; }
+body.dark .bottom-sheet { background: #1e1e1e; }
+body.dark .sheet-handle { background: #444; }
 
-    .mini-card {
-      background: #f1f1f1;
-      padding: 10px;
-      border-radius: 12px;
-      font-size: 14px;
-    }
+/* HEADER */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
 
-    input {
-      width: 100%;
-      padding: 12px;
-      margin-top: 8px;
-      border-radius: 10px;
-      border: 1px solid #ccc;
-    }
+.header h2 {
+  font-family: 'Space Mono', monospace;
+  font-size: 18px;
+  color: #ff8c00;
+  letter-spacing: -0.5px;
+}
 
-    button {
-      width: 100%;
-      padding: 12px;
-      border-radius: 10px;
-      border: none;
-      background: #1e88e5;
-      color: white;
-      margin-top: 10px;
-    }
+.icon-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: #fff5e6;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, transform 0.15s;
+  padding: 0;
+  width: auto;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+.icon-btn:hover { transform: scale(1.05); background: #ffe0b2; }
+body.dark .icon-btn { background: #2a2a2a; }
+body.dark .icon-btn:hover { background: #333; }
 
-    #loginBox, #adminPanel, #historyBox {
-      display: none;
-    }
+/* BIG STATS */
+.big-stat {
+  background: linear-gradient(135deg, #ff8c00 0%, #ff6600 100%);
+  border-radius: 20px;
+  padding: 24px;
+  color: white;
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.big-stat::before {
+  content: '';
+  position: absolute;
+  right: -20px; top: -20px;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+}
+.big-stat::after {
+  content: '';
+  position: absolute;
+  right: 20px; bottom: -30px;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.07);
+}
+.big-stat-label { font-size: 12px; opacity: 0.85; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+.big-stat-value {
+  font-family: 'Space Mono', monospace;
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 4px 0 2px;
+}
+.big-stat-sub { font-size: 13px; opacity: 0.8; }
 
-    .history-item {
-      border-bottom: 1px solid #ccc;
-      padding: 5px;
-      font-size: 14px;
-    }
+/* GRID CARDS */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
 
-    canvas {
-      margin-top: 10px;
-    }
-  </style>
+.card {
+  background: #f7f7f7;
+  padding: 14px 12px;
+  border-radius: 16px;
+  text-align: center;
+  transition: background 0.3s;
+}
+.card-label { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+.card-value { font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700; color: #222; }
+body.dark .card-value { color: #f0f0f0; }
+.card-sub { font-size: 11px; color: #aaa; margin-top: 3px; }
+
+/* DATE BOX */
+.date-box {
+  background: #f7f7f7;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  transition: background 0.3s;
+}
+.date-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.date-label { font-size: 12px; color: #888; font-weight: 600; }
+.date-val { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; }
+
+.badge {
+  margin-top: 10px;
+  background: #ff8c00;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* BUTTONS */
+.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+
+.btn {
+  padding: 12px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  transition: transform 0.15s, opacity 0.15s;
+}
+.btn:hover { transform: scale(1.02); opacity: 0.92; }
+.btn:active { transform: scale(0.98); }
+
+.btn-primary { background: #ff8c00; color: white; }
+.btn-secondary { background: #f0f0f0; color: #333; }
+body.dark .btn-secondary { background: #2a2a2a; color: #ddd; }
+.btn-full { grid-column: span 2; }
+
+/* HISTORY */
+#historyBox { display: none; margin-top: 10px; }
+.history-item {
+  font-size: 13px;
+  border-bottom: 1px solid #eee;
+  padding: 8px 4px;
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Space Mono', monospace;
+}
+
+/* EQUIPMENT MODAL */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: white;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+body.dark .modal { background: #1e1e1e; }
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+body.dark .modal-header { border-color: #333; }
+.modal-title { font-weight: 800; font-size: 16px; }
+.modal-close {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+body.dark .modal-close { background: #2a2a2a; color: white; }
+.modal iframe {
+  flex: 1;
+  border: none;
+  width: 100%;
+}
+
+/* BOTTOM SHEET (Admin) */
+.sheet-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 90;
+}
+.sheet-overlay.active { display: block; }
+
+.bottom-sheet {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  border-radius: 24px 24px 0 0;
+  padding: 20px;
+  z-index: 95;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.15);
+}
+.bottom-sheet.open { transform: translateY(0); }
+
+.sheet-handle {
+  width: 40px; height: 4px;
+  background: #ddd;
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+.sheet-title { font-weight: 800; font-size: 16px; margin-bottom: 14px; }
+
+.sheet-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid #eee;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  margin-bottom: 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.sheet-input:focus { border-color: #ff8c00; }
+
+.sheet-btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* LOGIN SHEET */
+.login-sheet-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid #eee;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  margin-bottom: 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.login-sheet-input:focus { border-color: #ff8c00; }
+</style>
 </head>
 
 <body>
 
-<div class="top">⚡ Energy</div>
+<div class="app" id="app">
 
-<div class="card">
+  <!-- HEADER -->
+  <div class="header">
+    <h2>⚡ CED KSEB</h2>
+    <div style="display:flex;gap:8px;">
+      <button class="icon-btn" onclick="openLogin()">🔒 Admin</button>
+      <button class="icon-btn" onclick="toggleDark()">🌙</button>
+    </div>
+  </div>
 
-  <div class="total">₹ <span id="total">0</span></div>
-  <div>Units: <span id="units">0</span></div>
+  <!-- BIG STAT -->
+  <div class="big-stat">
+    <div class="big-stat-label">Total Amount</div>
+    <div class="big-stat-value">₹<span id="total">0</span></div>
+    <div class="big-stat-sub"><span id="units">0</span> kWh consumed this cycle</div>
+  </div>
 
+  <!-- GRID CARDS -->
   <div class="grid">
-    <div class="mini-card">📅 Bill: <span id="billDate"></span></div>
-    <div class="mini-card">📅 Next: <span id="nextDate"></span></div>
-    <div class="mini-card">⏳ Days: <span id="daysLeft"></span></div>
+    <div class="card">
+      <div class="card-label">Month Usage</div>
+      <div class="card-value" id="monthUnits">0</div>
+      <div class="card-sub">readings</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Per Day Average</div>
+      <div class="card-value" id="perDay">0</div>
+      <div class="card-sub">kWh / day</div>
+    </div>
   </div>
 
-  <button onclick="openLogin()">🔒 Admin</button>
-
-  <div id="loginBox">
-    <input type="password" id="password" placeholder="Password">
-    <button onclick="checkPassword()">Login</button>
+  <!-- DATE BOX -->
+  <div class="date-box">
+    <div class="date-row">
+      <span class="date-label">📅 Current Bill</span>
+      <span class="date-val" id="billDate"></span>
+    </div>
+    <div class="date-row">
+      <span class="date-label">📅 Next Bill</span>
+      <span class="date-val" id="nextDate"></span>
+    </div>
+    <div class="badge">⏳ <span id="daysLeft"></span> Days Left</div>
   </div>
 
-  <div id="adminPanel">
-    <input type="number" id="prev" placeholder="Previous Reading">
-    <input type="number" id="curr" placeholder="Current Reading">
-    <button onclick="updateBill()">Update</button>
+  <!-- ACTION BUTTONS -->
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="downloadPDF()">📄 Export PDF</button>
+    <button class="btn btn-secondary" onclick="openEquipment()">🔌 Equipment</button>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-secondary btn-full" onclick="toggleHistory()">📜 View History</button>
   </div>
 
-  <button onclick="toggleHistory()">📜 History</button>
   <div id="historyBox"></div>
 
-  <button onclick="toggleGraph()">📊 Graph</button>
-  <canvas id="chart" style="display:none;"></canvas>
+</div>
 
+<!-- EQUIPMENT MODAL -->
+<div class="modal-overlay" id="equipmentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">🔌 Equipment List</span>
+      <button class="modal-close" onclick="closeEquipment()">✕</button>
+    </div>
+    <!-- Replace the src below with your Google Drive PDF embed link -->
+    <iframe
+      src="https://drive.google.com/file/d/1diAEFdqxT6w7-3xXl9QuucsGUP94H5Nb/preview"
+      allow="autoplay"
+      id="equipmentFrame">
+    </iframe>
+  </div>
+</div>
+
+<!-- SHEET OVERLAY -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeAllSheets()"></div>
+
+<!-- LOGIN BOTTOM SHEET -->
+<div class="bottom-sheet" id="loginSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">🔒 Admin Login</div>
+  <input type="password" id="password" class="login-sheet-input" placeholder="Enter Password">
+  <div class="sheet-btn-row">
+    <button class="btn btn-secondary" onclick="closeAllSheets()">Cancel</button>
+    <button class="btn btn-primary" onclick="checkPassword()">Login</button>
+  </div>
+</div>
+
+<!-- ADMIN BOTTOM SHEET -->
+<div class="bottom-sheet" id="adminSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">⚡ Update Reading</div>
+  <input type="number" id="curr" class="sheet-input" placeholder="Enter Current Meter Reading">
+  <div class="sheet-btn-row">
+    <button class="btn btn-secondary" onclick="closeAdmin()">⬅ Back</button>
+    <button class="btn btn-primary" onclick="updateBill()">Update</button>
+  </div>
 </div>
 
 <script>
 const PASSWORD = "4007";
-let isAdmin = false;
 
 const firebaseConfig = {
   apiKey: "AIzaSyC-QCBrGFrGI7FPrmZjocmf4Mzu92TgiEs",
-  authDomain: "room-electricity.firebaseapp.com",
-  databaseURL: "https://room-electricity-default-rtdb.firebaseio.com",
-  projectId: "room-electricity"
+  databaseURL: "https://room-electricity-default-rtdb.firebaseio.com"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const currInput = document.getElementById("curr");
-const unitsEl = document.getElementById("units");
-const totalEl = document.getElementById("total");
-const historyBox = document.getElementById("historyBox");
-const chartCanvas = document.getElementById("chart");
-
-// LOGIN
-function openLogin(){
-  document.getElementById("loginBox").style.display = "block";
+/* DARK */
+function toggleDark() {
+  document.body.classList.toggle("dark");
 }
 
-function checkPassword(){
-  if(document.getElementById("password").value === PASSWORD){
-    isAdmin = true;
-    document.getElementById("loginBox").style.display = "none";
-    document.getElementById("adminPanel").style.display = "block";
+/* SHEETS */
+function openSheet(id) {
+  document.getElementById("sheetOverlay").classList.add("active");
+  document.getElementById(id).classList.add("open");
+}
+
+function closeAllSheets() {
+  document.getElementById("sheetOverlay").classList.remove("active");
+  document.querySelectorAll(".bottom-sheet").forEach(s => s.classList.remove("open"));
+}
+
+/* LOGIN */
+function openLogin() {
+  openSheet("loginSheet");
+}
+
+function checkPassword() {
+  if (document.getElementById("password").value === PASSWORD) {
+    document.getElementById("loginSheet").classList.remove("open");
+    openSheet("adminSheet");
+    document.getElementById("password").value = "";
   } else {
-    alert("Wrong Password ❌");
+    document.getElementById("password").style.borderColor = "red";
+    setTimeout(() => document.getElementById("password").style.borderColor = "", 1500);
   }
 }
 
-// CALCULATION
-function calculate(u){
-  let e=0;
-  let s1=Math.min(u,100); e+=s1*3.35; u-=s1;
-  if(u>0){let s2=Math.min(u,100); e+=s2*4.25; u-=s2;}
-  if(u>0){let s3=Math.min(u,100); e+=s3*5.35; u-=s3;}
-  if(u>0){let s4=Math.min(u,100); e+=s4*7.2; u-=s4;}
-  if(u>0){let s5=Math.min(u,100); e+=s5*8.5; u-=s5;}
+function closeAdmin() {
+  closeAllSheets();
+}
+
+/* EQUIPMENT MODAL */
+function openEquipment() {
+  document.getElementById("equipmentModal").classList.add("active");
+}
+function closeEquipment() {
+  document.getElementById("equipmentModal").classList.remove("active");
+}
+
+/* CALC */
+function calculate(u) {
+  let e = 0;
+  let s1 = Math.min(u, 100); e += s1 * 3.35; u -= s1;
+  if (u > 0) { let s2 = Math.min(u, 100); e += s2 * 4.25; }
   return e;
 }
 
-function fixed(u){
-  if(u<=100)return 100;
-  if(u<=200)return 170;
-  if(u<=300)return 210;
-  if(u<=400)return 280;
-  if(u<=500)return 320;
-  return 440;
+function getMonthKey() {
+  let d = new Date();
+  return d.getFullYear() + "-" + d.getMonth();
 }
 
-// 🔥 RECALCULATE BILL (COMMON FUNCTION)
-function recalculateAll(data){
-  if(!data) return;
+/* INIT */
+db.ref("history").once("value", snap => {
+  if (!snap.exists()) {
+    db.ref("history").set({
+      a: { reading: 19971, date: "07 Apr" },
+      b: { reading: 19986, date: "11 Apr" },
+      c: { reading: 19996, date: "13 Apr" }
+    });
+  }
+});
 
-  let keys = Object.keys(data);
-  let first = data[keys[0]].curr;
-  let last = data[keys[keys.length-1]].curr;
+/* UPDATE */
+function updateBill() {
+  let curr = parseFloat(document.getElementById("curr").value) || 0;
 
-  let units = last - first;
-  if(units < 0) units = 0;
+  db.ref("history").once("value", snap => {
+    let data = snap.val();
+    let values = Object.values(data);
 
-  let energy = calculate(units);
-  let total = energy + fixed(units) + (energy * 0.1) + 12;
+    let first = values[0].reading;
+    let units = curr - first;
+    if (units < 0) units = 0;
 
-  db.ref("bill").set({units,total});
-}
+    let total = calculate(units) + 100;
 
-// UPDATE BILL
-function updateBill(){
-  let curr=parseFloat(currInput.value)||0;
-
-  db.ref("history").once("value", snap=>{
-    let data=snap.val();
-
-    let initial;
-    if(!data){
-      initial = curr;
-    } else {
-      let firstKey = Object.keys(data)[0];
-      initial = data[firstKey].curr;
-    }
-
-    let units = curr - initial;
-    if(units<0) units=0;
+    db.ref("bill").set({ units, total });
 
     db.ref("history").push({
-      prev: initial,
-      curr: curr,
-      units: units,
-      date: new Date().toLocaleString()
+      reading: curr,
+      date: new Date().toLocaleString(),
+      month: getMonthKey()
     });
 
-    db.ref("history").once("value", snap2=>{
-      recalculateAll(snap2.val());
-    });
-
-    alert("Updated ✅");
+    closeAdmin();
   });
 }
 
-// DISPLAY BILL
-db.ref("bill").on("value", snap=>{
-  let d=snap.val();
-  if(d){
-    unitsEl.innerText=d.units;
-    totalEl.innerText=d.total.toFixed(2);
-  }
+/* DISPLAY */
+db.ref("bill").on("value", snap => {
+  let d = snap.val();
+  if (!d) return;
+
+  document.getElementById("units").innerText = d.units;
+  document.getElementById("total").innerText = d.total.toFixed(2);
 });
 
-// HISTORY (VIEW ONLY FOR USERS)
-function toggleHistory(){
-  historyBox.style.display = historyBox.style.display==="block"?"none":"block";
-}
+/* HISTORY + ANALYTICS */
+db.ref("history").on("value", snap => {
+  let data = snap.val();
+  if (!data) return;
 
-db.ref("history").on("value", snap=>{
-  let data=snap.val();
-  if(!data){
-    historyBox.innerHTML="No history yet";
-    return;
-  }
+  let html = "", monthCount = 0;
+  let currentMonth = getMonthKey();
+  let values = Object.values(data);
 
-  let html="";
-  for(let k in data){
-    let i=data[k];
-
-    html+=`
-    <div class="history-item">
-      📅 ${i.date}<br>
-      ${i.prev} → ${i.curr}<br>
-      Units: ${i.units}
-      ${isAdmin ? `<button onclick="editHistory('${k}')">Edit</button>` : ""}
+  values.forEach(i => {
+    html += `<div class="history-item">
+      <span>${i.date}</span>
+      <span>${i.reading}</span>
     </div>`;
-  }
-
-  historyBox.innerHTML=html;
-});
-
-// 🔥 EDIT HISTORY (FIXED)
-function editHistory(key){
-  if(!isAdmin){
-    alert("Admin only ❌");
-    return;
-  }
-
-  let newCurr = prompt("Enter new current reading:");
-  if(!newCurr) return;
-
-  db.ref("history/"+key+"/curr").set(parseFloat(newCurr));
-
-  // RECALCULATE EVERYTHING AFTER EDIT
-  db.ref("history").once("value", snap=>{
-    recalculateAll(snap.val());
+    if (i.month === currentMonth) monthCount++;
   });
 
-  alert("Updated & Recalculated ✅");
-}
+  document.getElementById("historyBox").innerHTML = html;
+  document.getElementById("monthUnits").innerText = monthCount;
 
-// GRAPH
-let chart;
-function toggleGraph(){
-  chartCanvas.style.display = chartCanvas.style.display==="block"?"none":"block";
-}
-
-db.ref("history").on("value", snap=>{
-  let data=snap.val();
-  if(!data) return;
-
-  let labels=[], values=[];
-  for(let k in data){
-    labels.push(data[k].date);
-    values.push(data[k].units);
-  }
-
-  const ctx=chartCanvas.getContext("2d");
-  if(chart) chart.destroy();
-
-  chart=new Chart(ctx,{
-    type:"line",
-    data:{
-      labels:labels,
-      datasets:[{
-        label:"Units Usage",
-        data:values
-      }]
-    }
+  // Per day average: total units / days elapsed in cycle
+  db.ref("bill").once("value", billSnap => {
+    let billData = billSnap.val();
+    if (!billData) return;
+    let billStart = new Date(2026, 3, 7);
+    let today = new Date();
+    let daysElapsed = Math.max(1, Math.ceil((today - billStart) / (1000 * 60 * 60 * 24)));
+    let avg = (billData.units / daysElapsed).toFixed(1);
+    document.getElementById("perDay").innerText = avg;
   });
 });
 
-// DATE
-window.onload = function(){
-  const today = new Date();
-  const next = new Date("2026-06-07");
+/* TOGGLE HISTORY */
+function toggleHistory() {
+  let box = document.getElementById("historyBox");
+  box.style.display = box.style.display === "block" ? "none" : "block";
+}
 
-  let diff = Math.ceil((next - today)/(1000*60*60*24));
-  if(diff < 0) diff = 0;
+/* DATE */
+const billDateObj = new Date(2026, 3, 7);
+const nextDateObj = new Date(2026, 5, 7);
 
-  document.getElementById("billDate").innerText = "07-04-2026";
-  document.getElementById("nextDate").innerText = "07-06-2026";
+document.getElementById("billDate").innerText = billDateObj.toLocaleDateString();
+document.getElementById("nextDate").innerText = nextDateObj.toLocaleDateString();
+
+function updateDays() {
+  let diff = Math.ceil((nextDateObj - new Date()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) diff = 0;
   document.getElementById("daysLeft").innerText = diff;
-};
+  if (diff <= 3) alert("⚠️ Bill due soon!");
+}
+updateDays();
+setInterval(updateDays, 60000);
+
+/* PDF */
+function downloadPDF() {
+  const { jsPDF } = window.jspdf;
+  let doc = new jsPDF();
+
+  // Title
+  doc.setFontSize(20);
+  doc.setTextColor(255, 140, 0);
+  doc.text("CED KSEB - Electricity Bill", 20, 22);
+
+  // Divider
+  doc.setDrawColor(255, 140, 0);
+  doc.setLineWidth(0.8);
+  doc.line(20, 27, 190, 27);
+
+  // Summary section
+  doc.setFontSize(13);
+  doc.setTextColor(80, 80, 80);
+  doc.text("BILL SUMMARY", 20, 38);
+
+  doc.setFontSize(12);
+  doc.setTextColor(30, 30, 30);
+  doc.text("Total Units:     " + document.getElementById("units").innerText + " kWh", 20, 50);
+  doc.text("Total Amount:  \u20B9" + document.getElementById("total").innerText, 20, 60);
+  doc.text("Per Day Avg:   " + document.getElementById("perDay").innerText + " kWh/day", 20, 70);
+  doc.text("Bill Date:        " + document.getElementById("billDate").innerText, 20, 80);
+  doc.text("Next Bill Date: " + document.getElementById("nextDate").innerText, 20, 90);
+  doc.text("Days Left:       " + document.getElementById("daysLeft").innerText + " days", 20, 100);
+
+  // History section
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.4);
+  doc.line(20, 110, 190, 110);
+
+  doc.setFontSize(13);
+  doc.setTextColor(80, 80, 80);
+  doc.text("READING HISTORY", 20, 122);
+
+  // Table header
+  doc.setFillColor(255, 140, 0);
+  doc.rect(20, 127, 170, 8, 'F');
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Date / Time", 24, 133);
+  doc.text("Meter Reading", 120, 133);
+
+  // Table rows
+  db.ref("history").once("value", snap => {
+    let data = snap.val();
+    if (!data) { doc.save("ced_kseb_bill.pdf"); return; }
+
+    let values = Object.values(data);
+    let y = 143;
+
+    values.forEach((item, idx) => {
+      if (y > 275) {
+        doc.addPage();
+        y = 20;
+      }
+
+      // Alternating row bg
+      if (idx % 2 === 0) {
+        doc.setFillColor(255, 248, 235);
+        doc.rect(20, y - 5, 170, 8, 'F');
+      }
+
+      doc.setFontSize(10);
+      doc.setTextColor(40, 40, 40);
+      doc.text(String(item.date || "—"), 24, y);
+      doc.text(String(item.reading || "—"), 120, y);
+      y += 10;
+    });
+
+    // Footer
+    doc.setFontSize(9);
+    doc.setTextColor(180, 180, 180);
+    doc.text("Generated on " + new Date().toLocaleString(), 20, 287);
+
+    doc.save("ced_kseb_bill.pdf");
+  });
+}
+
+/* Close equipment modal on overlay click */
+document.getElementById("equipmentModal").addEventListener("click", function(e) {
+  if (e.target === this) closeEquipment();
+});
 </script>
 
 </body>
